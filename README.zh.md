@@ -54,6 +54,7 @@ dsh plugin --profile web add /path/to/dsh-reverie
 ## 数据与隐私
 
 - **只读**：从不写入、追加或改写任何会话、memory、语料文件。
+- **只收「人说过的话」**：user 消息里由宿主注入的上下文（AGENTS.md、运行时快照、技能目录）按 `source.kind` 排除；推理与工具流量也不进语料。
 - **只读已关闭的会话**：当前活跃（live）的会话被排除，正在进行的对话不会成为实验材料。
 - **默认只读本工作区**：`scope: "workspace"`；改成 `"all"` 才会跨工作区读取。
 - **不联网，除了模型本身**：没有遥测、没有上传、没有第三方请求；`mock` 模式完全离线。
@@ -106,7 +107,7 @@ ctx.sessionQuery ──► corpus.js ──► search.js ──► loop.js ─�
 ```
 
 - `lib/index.js` 只做装配：注册工具与系统提示公告。
-- `lib/corpus.js` 通过 `ctx.sessionQuery` 读语料，只收 persisted 且非 live 的会话；单个会话读失败只记录问题，不吞掉整份语料。
+- `lib/corpus.js` 通过 `ctx.sessionQuery` 读语料，只收 persisted 且非 live 的会话；会话内部只取当前 surface，并只保留人与模型真正说过的话——注入上下文（`agent-instructions`、`runtime-context`、技能目录）虽然同属 user 角色，但 `source.kind` 不同，推理与工具流量也会被滤掉。单个会话读失败只记录问题，不吞掉整份语料。
 - `lib/search.js` 是与宿主无关的检索：拉丁词 + CJK 二元切词、BM25、字面短语加权。同一份语料与查询永远排出同样的顺序。
 - `lib/loop.js` 是 Reverie 自己的模型循环：每次一步流式请求、组装 blocks、派发内部工具（`reverie_search` / `reverie_read` / `reverie_note`），预算耗尽会被记成 `budget` / `max-steps`，而不是伪装成模型主动结束。
 - `lib/artifacts.js` 负责产物；`lib/runs.js` 只按白名单 id 与固定文件名读取，模型给的 `run` 参数不能穿出目录。

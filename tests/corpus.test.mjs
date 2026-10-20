@@ -153,8 +153,7 @@ test("a second load reuses the cache and refresh rebuilds it", async () => {
   assert.equal(service.calls.filter((call) => call.method === "listSessions").length, 2);
 });
 
-test("one unreadable session is reported but does not erase the rest", async () => {
-  clearCorpusCache();
+test("one unreadable session is reported but does not erase the rest", async () => {  clearCorpusCache();
   const service = fakeSessionQuery({
     sessions: [
       {
@@ -172,10 +171,10 @@ test("one unreadable session is reported but does not erase the rest", async () 
     ],
   });
   // Make the first session fail while listing still advertises it.
-  const original = service.filterEvents;
-  service.filterEvents = async (sessionId, filters) => {
+  const original = service.readSurface;
+  service.readSurface = async (sessionId) => {
     if (sessionId === "broken") throw new Error("simulated read failure");
-    return original(sessionId, filters);
+    return original(sessionId);
   };
   const corpus = await loadCorpus(service, settings(), { cwd: "D:\\work", now: 5_000, refresh: true });
   assert.deepEqual(
@@ -184,4 +183,40 @@ test("one unreadable session is reported but does not erase the rest", async () 
   );
   assert.equal(corpus.problems.length, 1);
   assert.match(corpus.problems[0], /simulated read failure/);
+});
+
+test("harness injections and reasoning never become corpus text", async () => {
+  clearCorpusCache();
+  const service = fakeSessionQuery({
+    sessions: [
+      {
+        id: "mixed",
+        createdAt: 1_000,
+        cwd: "D:\\work",
+        messages: [
+          { seq: 0, time: 1_100, role: "user", text: "这是我自己写的一句话。" },
+          {
+            seq: 1,
+            time: 1_200,
+            role: "user",
+            sourceKind: "runtime-context",
+            text: "这是运行时快照注入的上下文，不该进语料。",
+          },
+          { seq: 2, time: 1_300, role: "assistant", text: "这是模型的回答正文。" },
+        ],
+      },
+    ],
+  });
+  const corpus = await loadCorpus(service, settings({ minDocumentChars: 4 }), {
+    cwd: "D:\\work",
+    now: 5_000,
+    refresh: true,
+  });
+  assert.deepEqual(
+    corpus.documents.map((document) => document.seq),
+    [0, 2],
+  );
+  assert.ok(corpus.documents.every((document) => !document.text.includes("运行时快照")));
+  // The assistant reasoning block is not ordinary text either.
+  assert.ok(corpus.documents.every((document) => !document.text.includes("内部推理")));
 });

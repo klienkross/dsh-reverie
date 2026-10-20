@@ -8,10 +8,48 @@
  * host.
  */
 
+/** Harness-injected user messages carry a non-`user` source kind. */
+const DEFAULT_USER_SOURCE = "user";
+
+/**
+ * Build one current-surface event the way `dsh-session` records it.
+ * @param {{seq: number, time: number, role: "user" | "assistant", text: string, sourceKind?: string}} message - fixture message.
+ * @returns {any} a surface event.
+ */
+function surfaceEvent(message) {
+  if (message.role === "user") {
+    return {
+      seq: message.seq,
+      type: "user/message",
+      time: message.time,
+      data: {
+        role: "user",
+        content: [{ type: "text", text: message.text }],
+        source: { kind: message.sourceKind ?? DEFAULT_USER_SOURCE },
+      },
+    };
+  }
+  return {
+    seq: message.seq,
+    type: "assistant/message",
+    time: message.time,
+    data: {
+      turn: 1,
+      step: 1,
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: message.text }, { type: "reasoning", text: "内部推理，不属于正文。" }],
+        source: { kind: "model", provider: "fake-provider", model: "fake-model" },
+      },
+      stream: [],
+    },
+  };
+}
+
 /**
  * Build a fake session corpus.
- * @param {{sessions: {id: string, createdAt: number, cwd?: string, parentSession?: string, live?: boolean, persisted?: boolean, origin?: string, messages: {seq: number, time: number, role: 'user'|'assistant', text: string}[]}[]}} input - fixtures.
- * @returns {{listSessions: Function, filterEvents: Function, readEvent: Function, calls: any[]}} the fake service.
+ * @param {{sessions: {id: string, createdAt: number, cwd?: string, parentSession?: string, live?: boolean, persisted?: boolean, origin?: string, messages: {seq: number, time: number, role: "user"|"assistant", text: string, sourceKind?: string}[]}[]}} input - fixtures.
+ * @returns {{listSessions: Function, readSurface: Function, readEvent: Function, calls: any[]}} the fake service.
  */
 export function fakeSessionQuery(input) {
   const sessions = input.sessions.map((session) => ({
@@ -35,22 +73,17 @@ export function fakeSessionQuery(input) {
       calls.push({ method: "listSessions" });
       return sessions.map((session) => ({ header: session.header, live: session.live, persisted: session.persisted }));
     },
-    async filterEvents(sessionId, filters) {
-      calls.push({ method: "filterEvents", sessionId, filters });
+    async readSurface(sessionId) {
+      calls.push({ method: "readSurface", sessionId });
       const session = sessions.find((candidate) => candidate.header.id === sessionId);
       if (!session) throw new Error(`unknown session: ${sessionId}`);
-      if (session.fail) throw new Error("simulated read failure");
-      const types = filters?.find((filter) => filter.kind === "type")?.values;
-      return session.messages
-        .filter((message) => (types ? types.includes(`${message.role}/message`) : true))
-        .map((message) => ({
-          sessionId,
-          seq: message.seq,
-          type: `${message.role}/message`,
-          time: message.time,
-          surface: "current",
-          text: message.text,
-        }));
+      const events = session.messages.map(surfaceEvent);
+      return {
+        session: session.header,
+        inheritedEventCount: 0,
+        capturedThroughSeq: events.length === 0 ? null : events[events.length - 1].seq,
+        events,
+      };
     },
     async readEvent(request) {
       calls.push({ method: "readEvent", request });
@@ -61,15 +94,7 @@ export function fakeSessionQuery(input) {
       const before = request.before ?? 2;
       const after = request.after ?? 2;
       const slice = session.messages.slice(Math.max(0, index - before), index + after + 1);
-      const events = slice.map((message) => ({
-        seq: message.seq,
-        type: `${message.role}/message`,
-        time: message.time,
-        data:
-          message.role === "user"
-            ? { content: [{ type: "text", text: message.text }] }
-            : { message: { content: [{ type: "text", text: message.text }] } },
-      }));
+      const events = slice.map(surfaceEvent);
       return {
         session: session.header,
         inheritedEventCount: 0,
@@ -128,25 +153,12 @@ export function fakeLlm(script) {
       }
       for (const call of entry.toolCalls ?? []) {
         yield { type: "block-start", index, blockType: "tool-call" };
-        yield {
-          type: "tool-call-delta",
-          index,
-          id: call.id,
-          name: call.name,
-          argumentsDelta: JSON.stringify(call.arguments),
-        };
-        yield {
-          type: "block-end",
-          index,
-          block: { type: "tool-call", id: call.id, name: call.name, arguments: JSON.stringify(call.arguments) },
-        };
+        yield { type: "tool-call-delta", index, id: call.id, name: call.name, argumentsDelta: JSON.stringify(call.arguments) };
+        yield { type: "block-end", index, block: { type: "tool-call", id: call.id, name: call.name, arguments: JSON.stringify(call.arguments) } };
         index += 1;
       }
       if (entry.usage) yield { type: "usage", usage: entry.usage };
-      yield {
-        type: "finish",
-        reason: { kind: entry.finish ?? ((entry.toolCalls?.length ?? 0) > 0 ? "tool-calls" : "stop") },
-      };
+      yield { type: "finish", reason: { kind: entry.finish ?? ((entry.toolCalls?.length ?? 0) > 0 ? "tool-calls" : "stop") } };
     },
   };
 }
@@ -194,19 +206,17 @@ export function plainMessages() {
       return { role: "assistant", content: blocks, source: { kind: "model", provider, model }, id: "m-assistant" };
     },
     toolResult({ callId, text, isError }) {
-      return {
-        role: "tool",
-        content: [{ type: "text", text }],
-        source: { kind: "tool", callId },
-        isError,
-        id: "m-tool",
-      };
+      return { role: "tool", content: [{ type: "text", text }], source: { kind: "tool", callId }, isError, id: "m-tool" };
     },
   };
 }
 
 /**
  * Create one fixture corpus with two sessions and a few messages.
+ *
+ * Session beta carries one harness-injected user message and every assistant
+ * message carries a reasoning block, so the corpus filter is exercised by every
+ * tool test rather than only by the corpus unit tests.
  * @param {string} cwd - working directory the sessions belong to.
  * @returns {ReturnType<typeof fakeSessionQuery>} the fake service.
  */
@@ -218,24 +228,9 @@ export function fixtureCorpus(cwd) {
         createdAt: Date.UTC(2026, 8, 1, 9, 0, 0),
         cwd,
         messages: [
-          {
-            seq: 0,
-            time: Date.UTC(2026, 8, 1, 9, 0, 1),
-            role: "user",
-            text: "我在想，把记忆当成书架而不是数据库，会不会让检索变得诚实一点。",
-          },
-          {
-            seq: 1,
-            time: Date.UTC(2026, 8, 1, 9, 0, 2),
-            role: "assistant",
-            text: "书架允许一本书被放错位置。数据库不允许。也许错放本身就是一种索引。",
-          },
-          {
-            seq: 2,
-            time: Date.UTC(2026, 8, 1, 9, 0, 3),
-            role: "user",
-            text: "那 Reverie 是不是在书架间走动，而不是在表里查询？它应该允许走神。",
-          },
+          { seq: 0, time: Date.UTC(2026, 8, 1, 9, 0, 1), role: "user", text: "我在想，把记忆当成书架而不是数据库，会不会让检索变得诚实一点。" },
+          { seq: 1, time: Date.UTC(2026, 8, 1, 9, 0, 2), role: "assistant", text: "书架允许一本书被放错位置。数据库不允许。也许错放本身就是一种索引。" },
+          { seq: 2, time: Date.UTC(2026, 8, 1, 9, 0, 3), role: "user", text: "那 Reverie 是不是在书架间走动，而不是在表里查询？它应该允许走神。" },
         ],
       },
       {
@@ -243,21 +238,18 @@ export function fixtureCorpus(cwd) {
         createdAt: Date.UTC(2026, 8, 2, 10, 0, 0),
         cwd,
         messages: [
-          {
-            seq: 0,
-            time: Date.UTC(2026, 8, 2, 10, 0, 1),
-            role: "user",
-            text: "梦里的房间总是比现实多一扇门，门后是同一个走廊。",
-          },
-          {
-            seq: 1,
-            time: Date.UTC(2026, 8, 2, 10, 0, 2),
-            role: "assistant",
-            text: "多出来的那扇门可能是记忆的压缩产物：走廊被复用了，门是新加的。",
-          },
+          { seq: 0, time: Date.UTC(2026, 8, 2, 10, 0, 1), role: "user", text: "梦里的房间总是比现实多一扇门，门后是同一个走廊。" },
+          { seq: 1, time: Date.UTC(2026, 8, 2, 10, 0, 2), role: "assistant", text: "多出来的那扇门可能是记忆的压缩产物：走廊被复用了，门是新加的。" },
           {
             seq: 2,
             time: Date.UTC(2026, 8, 2, 10, 0, 3),
+            role: "user",
+            sourceKind: "agent-instructions",
+            text: "这段是 AGENTS.md 注入的上下文，不属于任何人的话，不该进语料。",
+          },
+          {
+            seq: 3,
+            time: Date.UTC(2026, 8, 2, 10, 0, 4),
             role: "user",
             text: "如果把这件事写成一条规则：梦不是随机噪声，而是用很低的成本重放已经存在的结构，那么房间里多出来的门就不神秘了。它只是把我白天走过的那条走廊压得太平，重新展开的时候接口对不齐，于是多出一扇门。这样解释很便宜，但便宜的解释不一定错，只是它没有给我任何新的行动，所以它更像是一个让我停止追问的句号，而不是一个可以继续走的线索。",
           },

@@ -15,20 +15,24 @@ First public release: Reverie as a read-only DSH plugin over local session histo
   `reverie_config`, plus a system-prompt announcement.
 - Corpus adapter over `ctx.sessionQuery` that keeps persisted, non-live sessions
   only, scopes to the current workspace by default, caps sessions and documents,
-  and reports per-session read failures instead of dropping the corpus.
+  and reports per-session read failures instead of dropping the corpus. Inside a
+  session only human-authored user text and assistant text enter the corpus:
+  harness injections are excluded by `source.kind`, and reasoning or tool traffic
+  never becomes corpus text.
 - Host-free BM25 retrieval with latin words and CJK characters/bi-grams, a
   literal-phrase bonus, and `<sessionId>#<seq>` evidence locators.
 - Reverie's own model loop over `ctx.llm`: streamed steps, block assembly,
   inner `reverie_search` / `reverie_read` / `reverie_note` tools, step, token and
   wall-clock budgets, `budget` / `max-steps` / `aborted` / `timeout` stop reasons.
 - Deterministic `mock` mode that exercises corpus, ranking and artifact writing
-  without any model call.
+  without any model call, seeded from tokens the newest document shares with
+  other documents so its locators point somewhere other than the seed.
 - Run artifacts under `$DSH_HOME/reverie/runs/<date>/<run-id>/` (`run.json`,
   `report.md`, `handoff.md`, `events.jsonl`, `usage.json`) plus `latest.json`,
   and a validated reader that refuses run ids or files outside its allowlist.
 - Atomic runtime settings file `$DSH_HOME/reverie/config.json` with per-field
   validation; a corrupt file degrades to defaults and says so.
-- Bilingual README (EN/ZH) and a 45-test suite covering config, corpus, search,
+- Bilingual README (EN/ZH) and a 46-test suite covering config, corpus, search,
   loop, mock, and all tools end-to-end.
 
 ### Notes

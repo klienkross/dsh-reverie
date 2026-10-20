@@ -54,6 +54,7 @@ Check `reverie_sessions` before the first real run: it shows exactly which sessi
 ## Data and privacy
 
 - **Read-only**: nothing is appended to, rewritten in, or deleted from any session, memory store or corpus file.
+- **Only what people said**: user messages injected by the harness (workspace instructions, runtime snapshots, the skill catalog) are excluded by `source.kind`; reasoning and tool traffic never become corpus text.
 - **Closed sessions only**: the live conversation you are in is excluded; it can never become its own experiment material.
 - **Current workspace by default**: `scope: "workspace"`; set `"all"` to read every local workspace.
 - **No network beyond the model call**: no telemetry, no uploads, no third-party requests; `mock` is fully offline.
@@ -106,7 +107,7 @@ ctx.sessionQuery ──► corpus.js ──► search.js ──► loop.js ─�
 ```
 
 - `lib/index.js` only assembles: register the tools and the system-prompt announcement.
-- `lib/corpus.js` reads through `ctx.sessionQuery`, keeping persisted non-live sessions only; one unreadable session is reported as a problem instead of erasing the corpus.
+- `lib/corpus.js` reads through `ctx.sessionQuery`, keeping persisted non-live sessions only; inside a session it keeps the current surface and only what a person or the model actually said — harness injections (`agent-instructions`, `runtime-context`, the skill catalog) share the user role but carry a different `source.kind`, and reasoning/tool traffic is filtered out. One unreadable session is reported as a problem instead of erasing the corpus.
 - `lib/search.js` is host-free: latin words plus CJK characters and bi-grams, BM25, literal-phrase bonus. The same corpus and query always rank the same way.
 - `lib/loop.js` is Reverie's own model loop: one streamed step at a time, block assembly, inner tool dispatch (`reverie_search` / `reverie_read` / `reverie_note`). Budget exhaustion is reported as `budget` / `max-steps`, never dressed up as the model deciding to finish.
 - `lib/artifacts.js` writes runs; `lib/runs.js` reads them only through a validated run id and a fixed file allowlist.
