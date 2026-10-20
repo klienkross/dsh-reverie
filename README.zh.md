@@ -60,6 +60,12 @@ dsh plugin --profile web add /path/to/dsh-reverie
 4. `reverie_report` —— 读报告与 `handoff.md`。
 5. 想真跑：`reverie_config` 设 `mode: "live"`（或在调用时传 `live: true`），再跑一次。会产生 API 费用。
 
+## 面板
+
+装好之后，Web 端会多出一个 **Reverie** 区块：旅程选择器、运行统计，以及四个标签页——报告、私人纸条、步骤轨迹、证据 locator。它只是查看器：背后的路由只做「列出/读取已记录运行」，刷新页面永远不可能触发一趟运行或花掉预算。
+
+视觉语言沿用原版 Reverie「夜路手记」的配色与信息架构。地图那层（蜿蜒夜路上的路标）是下一步移植目标；面板已经先把旅程/统计/轨迹这套结构跑通，地图直接接在上面。
+
 ## 语料源
 
 | kind | 读什么 | locator 形状 |
@@ -149,7 +155,8 @@ npm run test:isolated # 每个文件一个子进程（需要可 spawn）
 
 ## Roadmap
 
-- SQL 源（`node:sqlite`，只读、单条 `SELECT`/`WITH`）——下一步。
+- 夜路地图：把原版的蜿蜒路线布局接到本插件的轨迹事件上。
+- SQL 源（`node:sqlite`，只读、单条 `SELECT`/`WITH`）。
 - 独立 CLI，复用 host-free 核心，让其他 harness 也能跑同样的旅程。
 - 可选的评估闭环：给纸条标「值得跟 / 没用」，让机制积累证据而不是轶事。
 

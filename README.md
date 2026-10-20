@@ -60,6 +60,12 @@ With no `sources` configured, the corpus is your current workspace's session his
 4. `reverie_report` — read the generated report and `handoff.md`.
 5. To do it for real, set `mode: "live"` with `reverie_config` (or pass `live: true` to one call) and run again. That spends API budget.
 
+## Panel
+
+Once installed, the web surface gets a **Reverie** section: a run picker, run stats, and four tabs — report, private note, step trail, evidence locators. It is a viewer: the routes behind it only list and read recorded runs, so a page refresh can never start a trip or spend budget.
+
+The visual language is ported from the original Reverie night-atlas page. The atlas map itself (waypoints on a winding road) is the next porting step; the panel already carries the journey/stats/trail structure it will feed.
+
 ## Sources
 
 | kind | reads | locator shape |
@@ -149,7 +155,8 @@ npm run test:isolated # one child process per file (requires spawning)
 
 ## Roadmap
 
-- SQL sources (`node:sqlite`, read-only, single `SELECT`/`WITH`) — next.
+- The night-atlas map: port the original winding-road layout onto this plugin's trail events.
+- SQL sources (`node:sqlite`, read-only, single `SELECT`/`WITH`).
 - A standalone CLI reusing the host-free core, so other harnesses can run the same trips.
 - Optional evaluation loop: marking notes as worth-following or not, so the mechanism gets evidence instead of anecdotes.
 

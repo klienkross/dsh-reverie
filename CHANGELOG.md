@@ -4,6 +4,24 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-21
+
+The first web panel, ported from the original Reverie frontend.
+
+### Added
+
+- A **Reverie** settings section in the web client: run picker, run stats, and
+  four tabs — report, private note, step trail, evidence locators. Registered
+  through the client module loader (`slots.inject("settings.section")`), no
+  build step.
+- Read-only viewer routes under `/api/dsh-reverie/`: `runs` (list), `run`
+  (metadata), `file` (report / handoff / trail / usage / meta artifacts).
+  Loopback-only, GET-only, artifact-name allowlist, 1 MiB response ceiling.
+- The panel is a viewer by construction: there is no route that starts a run,
+  so a page refresh can never spend model budget.
+- Panel routes mount only when the host provides a web server; headless
+  compositions keep the tools and skip the UI.
+
 ## [0.2.1] - 2026-10-21
 
 Fixes from the first live runs over a real notes vault.
