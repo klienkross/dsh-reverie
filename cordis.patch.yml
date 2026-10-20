@@ -1,0 +1,18 @@
+# dsh-reverie bundle patch: inserts the plugin row into the profile roster.
+# Applied as a profile bundle layer (declared by the `dsh.bundle.patch`
+# manifest field in package.json). Activate with:
+#
+#   # local development (link)
+#   dsh plugin --profile <profile> add <path-to-this-repo>
+#   # after publishing to npm
+#   dsh plugin --profile <profile> add @kleinkross/dsh-reverie
+#
+# The row config only decides mounting and the system-prompt announcement.
+# Runtime settings (corpus scope, provider/model, budgets, mock/live) live in
+# ~/.dsh/reverie/config.json and are read/written by the reverie_config tool.
+- insert:
+    - id: reverie
+      name: '@kleinkross/dsh-reverie'
+      config:
+        announceToAgent: true   # 在系统提示中公告插件（工具 + 能力说明）
+        enabled: true           # 插件总开关
