@@ -63,7 +63,9 @@ test("a step without tool calls ends the trip as model-ended", async () => {
   const result = await runLoop(options(llm));
   assert.equal(result.stopReason, "model-ended");
   assert.equal(result.note, "");
-  assert.equal(result.usage.steps, 1);
+  // One exploration step plus the forced finalize attempt, which this script
+  // has no answer for, so no note is produced.
+  assert.equal(result.usage.steps, 2);
   assert.equal(result.events.at(-1).kind, "settlement");
 });
 
@@ -113,6 +115,47 @@ test("invalid JSON arguments become an error result", async () => {
   assert.equal(result.stopReason, "max-steps");
 });
 
+test("a trip that runs out of steps still gets one forced finalize note", async () => {
+  const llm = fakeLlm([
+    { toolCalls: [{ id: "c1", name: "echo", arguments: { value: "still reading" } }] },
+    { toolCalls: [{ id: "c2", name: "reverie_note", arguments: { note: "被迫写下的纸条" } }] },
+  ]);
+  const result = await runLoop(options(llm, { maxSteps: 1 }));
+  assert.equal(result.stopReason, "max-steps");
+  assert.equal(result.note, "被迫写下的纸条");
+  assert.equal(result.noteCalls, 1);
+  assert.equal(result.usage.steps, 2);
+  const finalize = result.events.find((event) => event.kind === "finalize");
+  assert.ok(finalize);
+  assert.equal(finalize.after, "max-steps");
+  // The finalize request offers exactly one tool.
+  assert.deepEqual(llm.requests[1].tools, ["reverie_note"]);
+});
+
+test("finalize is skipped when the model already wrote a note", async () => {
+  const llm = fakeLlm([
+    { toolCalls: [{ id: "c1", name: "reverie_note", arguments: { note: "自己写的纸条" } }] },
+    { text: "结束。" },
+  ]);
+  const result = await runLoop(options(llm));
+  assert.equal(result.note, "自己写的纸条");
+  assert.equal(result.noteCalls, 1);
+  assert.equal(result.events.some((event) => event.kind === "finalize"), false);
+  assert.equal(llm.requests.length, 2);
+});
+
+test("finalize gives up quietly when the model still refuses to write", async () => {
+  const llm = fakeLlm([
+    { toolCalls: [{ id: "c1", name: "echo", arguments: { value: "no note" } }] },
+    { text: "我还是不想写。" },
+  ]);
+  const result = await runLoop(options(llm, { maxSteps: 1 }));
+  assert.equal(result.note, "");
+  assert.equal(result.noteCalls, 0);
+  assert.equal(result.stopReason, "max-steps");
+  assert.equal(result.events.some((event) => event.kind === "finalize"), false);
+});
+
 test("a provider error surfaces with its stable code", async () => {
   const llm = fakeLlm([{ text: "unused" }]);
   llm.stream = async function* () {
@@ -144,7 +187,10 @@ test("the input-token ceiling stops the trip before the next request", async () 
   ]);
   const result = await runLoop(options(llm, { maxInputTokens: 400 }));
   assert.equal(result.stopReason, "budget");
-  assert.equal(llm.requests.length, 1);
+  // The ceiling stops exploration after step 1; the only later request allowed
+  // is the single forced finalize step.
+  assert.equal(llm.requests.length, 2);
+  assert.deepEqual(llm.requests[1].tools, ["reverie_note"]);
 });
 
 test("an aborted signal settles as aborted without pretending to finish", async () => {

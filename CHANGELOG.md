@@ -4,6 +4,24 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-21
+
+Fixes from the first live runs over a real notes vault.
+
+### Fixed
+
+- A trip that runs out of steps while still reading now gets one dedicated
+  finalize request: only the note tool is offered, and the trail records a
+  `finalize` event. Before this, hitting `max-steps` meant the run produced no
+  private note at all.
+- `reverie_read` inside a run no longer fails on a locator the model extended or
+  shortened: an overlapping section is returned, a range outside every section
+  falls back to the nearest one (with a note), and a bare file path reads that
+  file's sections. Only genuinely absent material fails, and the failure lists
+  nearby candidates.
+- The prompt now tells the model to copy locator strings verbatim and that a
+  path without a line range is acceptable.
+
 ## [0.2.0] - 2026-10-21
 
 The corpus becomes configurable: Reverie is no longer a session scraper.

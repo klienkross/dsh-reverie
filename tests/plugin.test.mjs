@@ -8,6 +8,7 @@ import { test } from "node:test";
 
 import { apply, name, REVERIE_GUIDANCE } from "../lib/index.js";
 import { clearCorpusCache } from "../lib/corpus.js";
+import { resolveSnapshotLocator } from "../lib/tools.js";
 import { fakeCtx, fakeLlm, fixtureCorpus } from "./helpers/host.mjs";
 
 const cwd = process.cwd();
@@ -309,4 +310,30 @@ test("with no readable corpus the tools say why instead of pretending", async (t
   const run = await tools.get("reverie_run").execute({ live: false }, execution());
   assert.equal(run.ok, false);
   assert.match(run.message, /没有可读的语料/);
+});
+
+test("the inner locator resolver tolerates copied, extended and path-only locators", () => {
+  const documents = [
+    { locator: "notes/a.md#L1-L20", text: "A1" },
+    { locator: "notes/a.md#L21-L40", text: "A2" },
+    { locator: "notes/a.md#L41-L60", text: "A3" },
+    { locator: "notes/b.md#L1-L10", text: "B" },
+  ];
+  // copied verbatim
+  assert.deepEqual(resolveSnapshotLocator(documents, "notes/a.md#L1-L20"), { positions: [0], note: "" });
+  // an extended range that overlaps stored sections
+  const extended = resolveSnapshotLocator(documents, "notes/a.md#L10-L35");
+  assert.deepEqual(extended.positions, [0, 1]);
+  assert.equal(extended.note, "");
+  // a range outside every section falls back to the nearest one, with a note
+  const nearest = resolveSnapshotLocator(documents, "notes/a.md#L200-L260");
+  assert.deepEqual(nearest.positions, [2]);
+  assert.match(nearest.note, /最近的分节/);
+  // a path without a range reads that file's sections
+  const pathOnly = resolveSnapshotLocator(documents, "notes/a.md");
+  assert.deepEqual(pathOnly.positions, [0, 1, 2]);
+  // an unknown file reports candidates instead of guessing
+  const missing = resolveSnapshotLocator(documents, "notes/zzz.md#L1-L5");
+  assert.deepEqual(missing.positions, []);
+  assert.match(missing.note, /没有加载进快照/);
 });
