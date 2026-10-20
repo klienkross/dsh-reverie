@@ -4,6 +4,20 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-21
+
+Fixes the plugin failing to load once a web panel was declared.
+
+### Fixed
+
+- `lib/client.js` no longer touches `window.__ModuleLoader__` unconditionally: a
+  Node-side import (boot validation, a mistaken host import, a tool) used to
+  throw `ReferenceError: window is not defined`, which made the whole bundle
+  fail and removed every `reverie_*` tool from the host.
+- `package.json` now exports `"./client": "./lib/client.js"`, so the client
+  loader resolves the panel entry by its documented subpath instead of falling
+  back to the host entry.
+
 ## [0.4.0] - 2026-10-21
 
 A second theme: the sampling view.
