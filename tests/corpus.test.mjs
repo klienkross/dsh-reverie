@@ -153,7 +153,8 @@ test("a second load reuses the cache and refresh rebuilds it", async () => {
   assert.equal(service.calls.filter((call) => call.method === "listSessions").length, 2);
 });
 
-test("one unreadable session is reported but does not erase the rest", async () => {  clearCorpusCache();
+test("one unreadable session is reported but does not erase the rest", async () => {
+  clearCorpusCache();
   const service = fakeSessionQuery({
     sessions: [
       {
@@ -219,4 +220,48 @@ test("harness injections and reasoning never become corpus text", async () => {
   assert.ok(corpus.documents.every((document) => !document.text.includes("运行时快照")));
   // The assistant reasoning block is not ordinary text either.
   assert.ok(corpus.documents.every((document) => !document.text.includes("内部推理")));
+});
+
+test("a session with nothing corpus-worthy in it is not listed at all", async () => {
+  clearCorpusCache();
+  const service = fakeSessionQuery({
+    sessions: [
+      {
+        id: "empty",
+        createdAt: 3_000,
+        cwd: "D:\\work",
+        messages: [],
+      },
+      {
+        id: "injected-only",
+        createdAt: 2_500,
+        cwd: "D:\\work",
+        messages: [
+          {
+            seq: 0,
+            time: 2_500,
+            role: "user",
+            sourceKind: "skill-catalog",
+            text: "只有技能目录注入，没有人的话，也没有模型的正文。",
+          },
+        ],
+      },
+      {
+        id: "real",
+        createdAt: 2_000,
+        cwd: "D:\\work",
+        messages: [{ seq: 0, time: 2_000, role: "user", text: "这一句是真正的人话。" }],
+      },
+    ],
+  });
+  const corpus = await loadCorpus(service, settings({ minDocumentChars: 4 }), {
+    cwd: "D:\\work",
+    now: 5_000,
+    refresh: true,
+  });
+  assert.deepEqual(
+    corpus.sessions.map((session) => session.id),
+    ["real"],
+  );
+  assert.equal(corpusSummary(corpus).sessions, 1);
 });
