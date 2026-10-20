@@ -15,3 +15,4 @@ import "./loop.test.mjs";
 import "./mock.test.mjs";
 import "./plugin.test.mjs";
 import "./search.test.mjs";
+import "./sources.test.mjs";

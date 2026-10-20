@@ -13,24 +13,27 @@ import { runMock } from "../lib/mock.js";
 function documents() {
   return [
     {
-      sessionId: "s-alpha",
-      seq: 0,
+      locator: "notes/书架.md#L1-L3",
+      sourceId: "notes",
+      sourceKind: "folder",
+      kind: "note",
       time: Date.UTC(2026, 8, 1),
-      role: "user",
       text: "我在想，把记忆当成书架而不是数据库，会不会让检索变得诚实一点。书架允许书被放错位置，数据库不允许；错放也许本身就是一种索引。",
     },
     {
-      sessionId: "s-beta",
-      seq: 1,
+      locator: "dsh/session-beta#1",
+      sourceId: "dsh",
+      sourceKind: "dsh-sessions",
+      kind: "reply",
       time: Date.UTC(2026, 8, 2),
-      role: "assistant",
       text: "书架允许一本书被放错位置，数据库不允许；也许错放本身就是一种索引，只是我们没有为它写查询语句，于是它只能以偶然的方式被读到。",
     },
     {
-      sessionId: "s-beta",
-      seq: 2,
+      locator: "journal/entries#2",
+      sourceId: "journal",
+      sourceKind: "json",
+      kind: "row",
       time: Date.UTC(2026, 8, 3),
-      role: "user",
       text: "梦里的走廊被复用了，门是新加的；压缩和展开的接口对不齐，就多出一扇门。",
     },
   ];
@@ -53,21 +56,16 @@ test("a mock trip leaves only locators that exist in the corpus", () => {
   const corpus = documents();
   const index = buildIndex(corpus);
   const result = runMock({ index, documents: corpus, language: "zh", maxNoteChars: 2_000 });
-  const locators = [...result.note.matchAll(/([\w-]+)#(\d+)/g)].map((match) => ({
-    sessionId: match[1],
-    seq: Number(match[2]),
-  }));
+  const known = new Set(corpus.map((document) => document.locator));
+  const locators = [...result.note.matchAll(/`([^`]+)`/g)].map((match) => match[1]).filter((value) => known.has(value));
   assert.ok(locators.length > 0);
   for (const locator of locators) {
-    assert.ok(
-      corpus.some((document) => document.sessionId === locator.sessionId && document.seq === locator.seq),
-      `locator ${locator.sessionId}#${locator.seq} must exist`,
-    );
+    assert.ok(known.has(locator), `locator ${locator} must exist`);
   }
 });
 
 test("an empty or too-short corpus produces an explicit empty-corpus result", () => {
-  const corpus = [{ sessionId: "s1", seq: 0, time: 1, role: "user", text: "短" }];
+  const corpus = [{ locator: "notes/a.md#L1-L1", text: "短", time: 1 }];
   const index = buildIndex(corpus);
   const result = runMock({ index, documents: corpus, language: "zh", maxNoteChars: 2_000 });
   assert.equal(result.stopReason, "empty-corpus");

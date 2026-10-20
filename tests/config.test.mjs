@@ -47,6 +47,28 @@ test("merge keeps valid fields and reports rejected ones without throwing", () =
   assert.deepEqual(rejected.map((entry) => entry.key).sort(), ["nope", "scope"]);
 });
 
+test("merge validates a sources list and keeps only usable entries", () => {
+  const { settings, problems, rejected } = merge(DEFAULTS, {
+    sources: [
+      { id: "notes", kind: "folder", root: "D:/notes" },
+      { id: "bad id", kind: "folder", root: "D:/notes" },
+      { id: "rows", kind: "json" },
+    ],
+  });
+  assert.deepEqual(
+    settings.sources.map((entry) => entry.id),
+    ["notes"],
+  );
+  assert.equal(problems.length, 2);
+  assert.deepEqual(rejected, []);
+});
+
+test("merge rejects a non-array sources value", () => {
+  const { settings, rejected } = merge(DEFAULTS, { sources: "D:/notes" });
+  assert.deepEqual(settings.sources, []);
+  assert.ok(rejected.some((entry) => entry.key === "sources"));
+});
+
 test("missing config file yields defaults and is not created implicitly", async (t) => {
   await useHome(t);
   const result = await readConfig();

@@ -2,27 +2,29 @@
 
 [English](README.md) | 中文
 
-Reverie 是 DeepSeek Harness 里的一次**独立、只读、开放式的联想实验**：它把本机已经持久化的会话历史当作语料，让模型自己选一个主题，检索、展开原文、任联想走下去，最后只留下两样东西——一份报告和一张有界的私人纸条。
+Reverie 是 DeepSeek Harness 里的一次**独立、只读、开放式的联想实验**：给它一个语料源——笔记目录、JSON/JSONL 导出、或者你自己的会话历史——让模型自己选主题、检索、展开原文、任联想走下去，最后只留下两样东西：一份报告和一张有界的私人纸条。
 
 它不是待办系统，也不是画像生成器。允许走神、允许死路、允许「这一趟没有发现」。
 
 ```text
-reverie_status    配置、语料、模型线路，一眼看完
-reverie_sessions  这次会读到哪些会话
-reverie_search    词法检索，返回 <sessionId>#<seq> 证据 locator
-reverie_read      按 locator 展开原文窗口
+reverie_status    源、语料规模、模型线路一眼看完
+reverie_sources   列出声明的源与分组
+reverie_search    词法检索，返回 <源>/<内部定位> 证据 locator
+reverie_read      按 locator 展开原文
 reverie_run       跑一趟（默认 mock，不调用模型）
 reverie_report    回看报告 / 纸条 / 轨迹
-reverie_config    查看或修改运行设置
+reverie_config    查看或修改运行设置与 `sources`
 ```
 
 ## 为什么是插件
 
-Reverie 的原始实现长在一个私人陪伴系统里：语料是那个系统的 L1/L2/L3 记忆，用户只有一个。做成 DSH 插件之后：
+Reverie 的原始实现长在一个私人陪伴系统里：语料是那个系统的记忆层，用户只有一个。做成 DSH 插件之后机制保留，但语料变成可配置的：
 
-- 语料换成**任何 DSH 用户自己的会话历史**，装完即有料，不需要先部署另一套系统；
-- 每次运行仍然独立、只读、不写回任何记忆，产物只落在 `~/.dsh/reverie/runs/`；
-- `mock` 模式完全不需要 API key，任何人可以先装、先看产物形状，再决定要不要花 token。
+- **folder**：一个 markdown/txt 目录（Obsidian 库、日记目录、导出的笔记）；
+- **json**：JSON / JSONL 导出（稍后读队列、书签、逐日记录）；
+- **dsh-sessions**：Harness 自己的会话历史（只读已关闭的会话）。
+
+每趟运行只读、不写回任何存储，产物落在 `~/.dsh/reverie/runs/`。`mock` 模式完全不需要 API key：先装、先看产物，再决定要不要花 token。
 
 ## 安装
 
@@ -40,84 +42,102 @@ dsh plugin --profile web add @kleinkross/dsh-reverie
 dsh plugin --profile web add /path/to/dsh-reverie
 ```
 
-安装后需要在 profile 里启用该组合包（插件市场/插件页会把它加进 `dsh.profile.bundles`），然后重启 `dsh web` 或等 HMR 生效。
-
 ## 快速开始
 
-1. `reverie_status` —— 确认语料非空、模型线路可用、当前是 `mock`。
-2. `reverie_run` —— 跑一趟 mock。它**不会**调用模型，只是把语料、排序、产物写入和报告形状走一遍。
-3. `reverie_report` —— 读刚生成的报告或 `handoff.md`。
-4. 想真跑：`reverie_config` 设 `mode: "live"`（或在 `reverie_run(live: true)` 时临时打开），再跑一次。这一步会产生 API 费用。
+1. `reverie_status` —— 看哪些源挂上了、各自贡献多少文档。
+2. 用 `reverie_config` 配一个源（或直接编辑 `~/.dsh/reverie/config.json`）：
 
-第一次跑之前建议先看一眼 `reverie_sessions`：确认 `scope` 选到的是你想让它读的那些会话。
+```jsonc
+"sources": [
+  { "id": "notes",   "kind": "folder", "root": "D:/notes", "extensions": ["md", "txt"] },
+  { "id": "journal", "kind": "json",   "path": "D:/data/journal.jsonl" }
+]
+```
+
+不配置 `sources` 时，语料默认是本工作区的会话历史。
+
+3. `reverie_run` —— 跑一趟 mock。不调用模型，只验证语料、检索、产物写入与报告形状。
+4. `reverie_report` —— 读报告与 `handoff.md`。
+5. 想真跑：`reverie_config` 设 `mode: "live"`（或在调用时传 `live: true`），再跑一次。会产生 API 费用。
+
+## 语料源
+
+| kind | 读什么 | locator 形状 |
+|---|---|---|
+| `folder` | `root` 下的 markdown/txt，按标题切 section，超长段按段落切块 | `notes/dir/note.md#L12-L40` |
+| `json` | `.json`（数组，或每个数组键一组）或 `.jsonl`；文本/标题/时间字段可配 | `journal/entries#3` |
+| `dsh-sessions` | 本工作区（或 `scope: "all"` 的全部）已持久化、非活跃会话 | `dsh/session-id#96` |
+
+单个源失败只贡献一条问题记录，其余源照常加载。
 
 ## 数据与隐私
 
-- **只读**：从不写入、追加或改写任何会话、memory、语料文件。
-- **只收「人说过的话」**：user 消息里由宿主注入的上下文（AGENTS.md、运行时快照、技能目录）按 `source.kind` 排除；推理与工具流量也不进语料。
-- **只读已关闭的会话**：当前活跃（live）的会话被排除，正在进行的对话不会成为实验材料。
-- **默认只读本工作区**：`scope: "workspace"`；改成 `"all"` 才会跨工作区读取。
-- **不联网，除了模型本身**：没有遥测、没有上传、没有第三方请求；`mock` 模式完全离线。
+- **只读**：从不写入、追加或改写任何会话、笔记、memory 或导出文件。
+- **只收「人说过的话」**（会话源）：宿主注入的上下文（AGENTS.md、运行时快照、技能目录）按 `source.kind` 排除；推理与工具流量不进语料。
+- **只读已关闭的会话**：当前活跃会话被排除，正在进行的对话不会成为实验材料。
+- **不联网，除了模型本身**：没有遥测、没有上传、没有第三方请求；`mock` 完全离线。
 - **产物**：`$DSH_HOME/reverie/runs/<日期>/<run-id>/{run.json,report.md,handoff.md,events.jsonl,usage.json}` 与 `latest.json`；配置在 `$DSH_HOME/reverie/config.json`。
-- **报告与纸条是模型生成材料**（live 运行），不是权威记忆。相信任何结论之前，按报告里的 `<sessionId>#<seq>` 展开原文。
+- **报告与纸条是模型生成材料**（live），不是权威记忆。相信结论之前，按 `<源>/<内部定位>` 展开原文。
 
 ## 运行设置
 
 ```jsonc
 {
-  "scope": "workspace",     // workspace | all
-  "includeSubagents": false,// 子代理会话默认不进语料
-  "maxSessions": 24,        // 每次最多读多少个已持久化会话
-  "lookbackDays": 0,        // 0 = 不限时间
-  "maxDocuments": 4000,     // 消息条数上限
-  "minDocumentChars": 24,   // 太短的消息不进语料
-  "cacheTtlMs": 600000,     // 语料缓存寿命
-  "provider": "",           // 空 = 用第一个已注册的 provider
-  "model": "",              // 空 = 用该 provider 的第一个模型
+  "sources": [],            // 语料；空 = 本工作区会话历史
+  "scope": "workspace",     // 默认会话源的范围：workspace | all
+  "includeSubagents": false,
+  "maxSessions": 24,
+  "lookbackDays": 0,
+  "maxDocuments": 4000,
+  "minDocumentChars": 24,
+  "cacheTtlMs": 600000,
+  "provider": "",           // 空 = 第一个已注册 provider
+  "model": "",              // 空 = 该 provider 的第一个模型
   "reasoningEffort": "",
-  "mode": "mock",           // mock 不调用模型；live 会产生费用
+  "mode": "mock",           // mock 不花钱；live 产生费用
   "maxSteps": 8,
-  "maxInputTokens": 60000,  // 累计输入上限（provider 有 usage 时按 usage 计）
+  "maxInputTokens": 60000,
   "maxOutputTokens": 2048,
   "timeoutMs": 600000,
   "maxNoteChars": 2000,
-  "persona": "",            // 可选：身份/文风参考文件路径
-  "language": "zh"          // 报告与提示语言：zh | en
+  "persona": "",
+  "language": "zh"
 }
 ```
 
-用 `reverie_config` 改，也可直接编辑 `$DSH_HOME/reverie/config.json`（每次调用都会重新读取，非法字段会被拒绝并出现在返回里）。
+folder 专属：`extensions`、`exclude`、`maxFileBytes`、`maxDocChars`。
+json 专属：`textFields`（默认 `text`/`content`/`note`/`body`…）、`titleField`、`timeField`。
 
-## 支持矩阵
+## 兼容性
 
 | 项目 | 要求 |
 |---|---|
-| DSH | `>= 0.1.5-rc.1`；已在 0.2.0-rc.2 桌面版上开发与测试 |
-| Node | `^22.19.0 || >=24.0.0` |
-| 宿主服务 | `tools`、`systemPrompt` 必需；`sessionQuery`（语料）、`llm`（live 运行）缺失时插件仍会挂载，工具会明确说明缺什么 |
+| DSH | `>= 0.1.5-rc.1`；已在 0.2.0-rc.2 桌面版开发与测试 |
+| Node | `^22.19.0 \|\| >=24.0.0` |
+| 宿主服务 | `tools`、`systemPrompt` 必需；`llm`（live 运行）与 `sessionQuery`（会话源）可选——只配 folder 时两者都不需要 |
 | 依赖包 | peer：`@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-llm` |
 
 ## 实现概览
 
 ```text
-ctx.sessionQuery ──► corpus.js ──► search.js ──► loop.js ──► artifacts.js
- (只读语料)          (归一化文档)   (BM25+CJK)   (工具循环)    (runs/ 产物)
-                                        │
-                                  mock.js（确定性，不调模型）
+sources/{folder,json,dsh}.js ──► corpus.js ──► search.js ──► loop.js ──► artifacts.js
+ （归一化文档）                  （locator/上限）  （BM25+CJK）  （工具循环）   （runs/ 产物）
+                                                      │
+                                                mock.js（确定性，不调模型）
 ```
 
-- `lib/index.js` 只做装配：注册工具与系统提示公告。
-- `lib/corpus.js` 通过 `ctx.sessionQuery` 读语料，只收 persisted 且非 live 的会话；会话内部只取当前 surface，并只保留人与模型真正说过的话——注入上下文（`agent-instructions`、`runtime-context`、技能目录）虽然同属 user 角色，但 `source.kind` 不同，推理与工具流量也会被滤掉。单个会话读失败只记录问题，不吞掉整份语料。
-- `lib/search.js` 是与宿主无关的检索：拉丁词 + CJK 二元切词、BM25、字面短语加权。同一份语料与查询永远排出同样的顺序。
-- `lib/loop.js` 是 Reverie 自己的模型循环：每次一步流式请求、组装 blocks、派发内部工具（`reverie_search` / `reverie_read` / `reverie_note`），预算耗尽会被记成 `budget` / `max-steps`，而不是伪装成模型主动结束。
-- `lib/artifacts.js` 负责产物；`lib/runs.js` 只按白名单 id 与固定文件名读取，模型给的 `run` 参数不能穿出目录。
-- `lib/tools.js` 是模型可见的七个工具。
+- `lib/sources/*` 适配器只负责把某个存储变成扁平文档；加一种存储 = 一个 `create*Source` 函数 + `SOURCE_KINDS` 里加一项。排序、循环、产物写入完全不知道文本来自哪里。
+- `lib/corpus.js` 挂载源、给 locator 加源前缀、应用上限并缓存快照。
+- `lib/search.js` 与宿主无关：拉丁词 + CJK 二元切词、BM25、字面短语加权。
+- `lib/loop.js` 是 Reverie 自己的模型循环：流式步进、block 组装、内部工具（`reverie_search`/`reverie_read`/`reverie_note`）、预算停止原因。
+- `lib/artifacts.js` / `lib/runs.js` 只按白名单 id 与固定文件名写读产物。
 
 设计取舍：
 
-- **用 `ctx.sessionQuery` 而不是自己解 `.jsonl.zstd`**：语料必须是模型可见的历史本身，而不是二次解析；也让插件不携带存储格式知识。
-- **不复用宿主 agent loop**：Reverie 的实验身份要求它拥有自己的消息与预算，不占用、也不污染日常会话。
-- **`mock` 是一等公民**：没有 API key 的人也能验证整条链路，回归测试也不烧钱。
+- **做语料源，不做会话抓取器**：Reverie 的机制面向扁平、异构的个人数据，会话历史只是其中一个 adapter。
+- **会话源仍走 `ctx.sessionQuery`**：不携带存储格式知识，读取是重放校验过的。
+- **不复用宿主 agent loop**：实验身份要求它拥有自己的消息与预算，不占用日常会话。
+- **`mock` 是一等公民**：没有 API key 也能验证整条链路。
 
 ## 开发与测试
 
@@ -127,13 +147,10 @@ npm test              # 进程内运行（受限沙箱可用）
 npm run test:isolated # 每个文件一个子进程（需要可 spawn）
 ```
 
-测试覆盖：配置校验、语料过滤与缓存、BM25 排序与短语加权、循环的工具派发/预算/错误、mock 确定性、七个工具的端到端（含一次 live 运行，模型线路是假的）。
+## Roadmap
 
-## 参考与边界
-
-- 语料只读、不写回记忆、不触发压缩或轮转。
-- 工具只排在 agent 的工具表里；插件不注册任何后台定时任务，跑不跑由人和模型决定。
-- `live` 运行的花费由宿主的 provider 决定；插件只做费用预检（步数与 token 上限），不是硬账单限额。
-- 报告与纸条可以被子代理或被后续对话引用，但它们不是证据；证据永远是 locator 指向的原文。
+- SQL 源（`node:sqlite`，只读、单条 `SELECT`/`WITH`）——下一步。
+- 独立 CLI，复用 host-free 核心，让其他 harness 也能跑同样的旅程。
+- 可选的评估闭环：给纸条标「值得跟 / 没用」，让机制积累证据而不是轶事。
 
 MIT License。

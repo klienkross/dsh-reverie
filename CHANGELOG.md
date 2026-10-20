@@ -4,6 +4,35 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-21
+
+The corpus becomes configurable: Reverie is no longer a session scraper.
+
+### Added
+
+- Corpus source interface (`lib/sources/`) with three adapters: `folder`
+  (markdown/txt trees split at headings), `json`/`jsonl` exports, and
+  `dsh-sessions` (the previous behaviour, now one source among several).
+- `reverie_sources` lists every configured source with its groups, document
+  counts and per-source problems.
+- `reverie_read` expands a full `<source>/<inner>` locator; legacy
+  `sessionId#seq` locators still resolve through the session source.
+- `reverie_config` accepts `sources` with per-entry validation; invalid entries
+  are dropped with a reported reason instead of failing the whole list.
+- Corpus-wide caps and cache keys now cover every source, and one broken source
+  contributes a problem line without erasing the rest of the corpus.
+
+### Changed
+
+- Locators are source-prefixed everywhere: search hits, run evidence indexes and
+  reports use `notes/dir/note.md#L12-L40`, `journal/entries#3` or
+  `dsh/session-id#96`.
+- `reverie_sessions` is renamed to `reverie_sources`.
+- The session source keeps its semantics (`source.kind` filtering, current
+  surface, no live sessions) but moves behind the adapter interface.
+- A folder-only composition no longer needs `sessionQuery`; only live runs need
+  `llm`.
+
 ## [0.1.1] - 2026-10-21
 
 Corpus hygiene after the first live run.
