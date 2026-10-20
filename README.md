@@ -62,9 +62,12 @@ With no `sources` configured, the corpus is your current workspace's session his
 
 ## Panel
 
-Once installed, the web surface gets a **Reverie** section: a run picker, run stats, and four tabs — report, private note, step trail, evidence locators. It is a viewer: the routes behind it only list and read recorded runs, so a page refresh can never start a trip or spend budget.
+Once installed, the web surface gets a **Reverie** section with two switchable themes:
 
-The visual language is ported from the original Reverie night-atlas page. The atlas map itself (waypoints on a winding road) is the next porting step; the panel already carries the journey/stats/trail structure it will feed.
+- **Sampling** (default): the whole corpus as a dim daily density strip, with the documents this trip actually touched lit in amber, a `touched N / total (x%)` stat, the step trail, and the private note as a closing card. It makes the honest claim: most of the archive stays dark.
+- **Journey**: the run picker, stats, and four tabs — report, private note, step trail, evidence locators.
+
+Both themes are viewers: the routes behind them only list and read recorded runs, so a page refresh can never start a trip or spend budget. The visual language is ported from the original Reverie night-atlas page; the winding-road map itself is still the next porting step.
 
 ## Sources
 

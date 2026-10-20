@@ -1,13 +1,14 @@
 /** The read-only panel routes: listing, metadata, artifacts, and guards. */
 
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-import { DEFAULTS } from "../lib/config.js";
+import { DEFAULTS, writeConfig } from "../lib/config.js";
 import { writeRun } from "../lib/artifacts.js";
+import { clearCorpusCache } from "../lib/corpus.js";
 import { makeRoutes, REVERIE_API } from "../lib/routes.js";
 
 /**
@@ -143,6 +144,39 @@ test("an empty run root lists nothing instead of failing", async (t) => {
   const result = await call(routes, REVERIE_API.runs, request({ url: REVERIE_API.runs }));
   assert.equal(result.status, 200);
   assert.deepEqual(result.body.runs, []);
+});
+
+test("the corpus route returns a daily density histogram", async (t) => {
+  const home = await mkdtemp(path.join(tmpdir(), "reverie-corpus-home-"));
+  const notes = await mkdtemp(path.join(tmpdir(), "reverie-corpus-notes-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  t.after(() => rm(notes, { recursive: true, force: true }));
+  await writeFile(
+    path.join(notes, "a.md"),
+    "# a\n\n第一天写下的内容，关于书架、索引和错放：书架允许书被放错位置，数据库不允许。",
+    "utf8",
+  );
+  await writeFile(
+    path.join(notes, "b.md"),
+    "# b\n\n第二天写下的内容，关于雾、睡不着，以及梦里多出来的那扇门与同一条走廊。",
+    "utf8",
+  );
+  const previous = process.env.DSH_HOME;
+  process.env.DSH_HOME = home;
+  t.after(() => {
+    if (previous === undefined) delete process.env.DSH_HOME;
+    else process.env.DSH_HOME = previous;
+  });
+  await writeConfig({ ...DEFAULTS, sources: [{ id: "notes", kind: "folder", root: notes, extensions: ["md"] }] });
+  clearCorpusCache();
+  const routes = makeRoutes({ root: path.join(home, "reverie", "runs") });
+  const result = await call(routes, REVERIE_API.corpus, request({ url: REVERIE_API.corpus }));
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.equal(result.body.documents, 2);
+  assert.ok(Array.isArray(result.body.days));
+  const total = result.body.days.reduce((sum, day) => sum + day.documents, 0);
+  assert.equal(total, 2);
 });
 
 test("the defaults fixture is untouched by route construction", () => {

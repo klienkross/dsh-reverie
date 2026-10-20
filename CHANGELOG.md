@@ -4,6 +4,26 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-21
+
+A second theme: the sampling view.
+
+### Added
+
+- **`archive` theme (default)**: the whole corpus as a dim daily density strip
+  with the documents this trip actually touched lit in amber, a
+  `点亮 N / total (x%)` stat, the step trail, and the private note as a closing
+  card. The claim it makes is the honest one — most of the archive stays dark.
+- **`road` theme**: the previous journey/stats/tabs view, kept as a switchable
+  alternative.
+- `/api/dsh-reverie/corpus`: a read-only daily histogram of the configured
+  corpus (documents, sources, day buckets, span) for the strip.
+- `run.json` now records `touched: [{locator, time}]` — locators cited by tool
+  results or the final note — so the viewer lights exactly what the trip kept
+  instead of re-deriving it from free text.
+- The panel fetches the trail as soon as a run is selected, so the sampling view
+  never starts empty.
+
 ## [0.3.0] - 2026-10-21
 
 The first web panel, ported from the original Reverie frontend.

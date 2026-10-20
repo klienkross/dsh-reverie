@@ -217,6 +217,10 @@ test("reverie_run writes a complete mock run without calling any model", async (
   assert.equal(runJson.mode, "mock");
   assert.equal(runJson.usage.steps, 1);
   assert.equal(runJson.corpus.sources[0].id, "dsh");
+  // The viewer's sampling strip needs the documents this trip kept.
+  assert.ok(Array.isArray(runJson.touched));
+  assert.ok(runJson.touched.length >= 1);
+  assert.match(runJson.touched[0].locator, /^dsh\//);
 });
 
 test("reverie_run live uses the host route, dispatches inner tools and keeps the note", async (t) => {
