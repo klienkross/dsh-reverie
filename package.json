@@ -1,6 +1,6 @@
 {
   "name": "@kleinkross/dsh-reverie",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Reverie for DeepSeek Harness: an isolated, read-only open-ended association experiment over a corpus you configure — a notes folder, a JSON/JSONL export, or your own session history. One bounded run searches, expands and reflects on what is actually there, then leaves a report and a private note. Mock mode needs no model call.",
   "type": "module",
   "main": "lib/index.js",

@@ -4,6 +4,20 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-10-21
+
+Optional services now follow the host framework's rule.
+
+### Fixed
+
+- `llm`, `sessionQuery` and `webServer` are resolved through `ctx.inject(...)`
+  callbacks instead of property reads. Cordis contexts are proxies: reading an
+  undeclared service throws `cannot get property "<name>" without inject`, which
+  failed the panel-route mount step (0.4.2's fault isolation kept the tools alive,
+  but the panel never appeared). The mount log named the exact error.
+- Removing the property-read fallback also removes the helper that could throw
+  the same way in the future.
+
 ## [0.4.2] - 2026-10-21
 
 Diagnosable, fault-isolated mounting.

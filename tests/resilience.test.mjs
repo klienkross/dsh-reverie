@@ -132,3 +132,84 @@ test("disabled plugin mounts nothing and writes no marker", async (t) => {
   assert.equal(tools.length, 0);
   await assert.rejects(readFile(path.join(home, "reverie", "apply-error.log"), "utf8"));
 });
+
+test("cordis-style contexts resolve optional services only through inject", async (t) => {
+  await useHome(t);
+  clearCorpusCache();
+  const tools = [];
+  const sections = [];
+  const routes = [];
+  const available = {
+    llm: fakeLlm([]),
+    sessionQuery: fixtureCorpus(process.cwd()),
+    webServer: {
+      register(route) {
+        routes.push(route);
+        return () => {};
+      },
+    },
+  };
+  /**
+   * Child context that only exposes the services requested by inject.
+   * @param {string[]} deps - requested dependencies.
+   * @returns {any} scoped context.
+   */
+  const child = (deps) => {
+    const guard = (name) => {
+      if (!deps.includes(name)) throw new Error(`cannot get property "${name}" without inject`);
+      return available[name];
+    };
+    return {
+      effect: (fn) => fn(),
+      get llm() {
+        return guard("llm");
+      },
+      get sessionQuery() {
+        return guard("sessionQuery");
+      },
+      get webServer() {
+        return guard("webServer");
+      },
+    };
+  };
+  const ctx = {
+    tools: {
+      register(tool) {
+        tools.push(tool);
+        return () => {};
+      },
+    },
+    systemPrompt: {
+      section(section) {
+        sections.push(section);
+        return () => {};
+      },
+    },
+    effect: (fn) => fn(),
+    inject(deps, callback) {
+      if (!deps.every((dependency) => available[dependency] !== undefined)) return { then() {} };
+      callback(child(deps));
+      return { then() {} };
+    },
+  };
+  // A direct read of an undeclared service throws, exactly like cordis.
+  for (const name of ["llm", "sessionQuery", "webServer"]) {
+    Object.defineProperty(ctx, name, {
+      get() {
+        throw new Error(`cannot get property "${name}" without inject`);
+      },
+    });
+  }
+
+  assert.doesNotThrow(() => apply(ctx, {}));
+  assert.equal(tools.length, 7);
+  assert.equal(routes.length, 4);
+  assert.equal(sections.length, 1);
+
+  // The injected handles are what the tools actually use.
+  const status = tools.find((tool) => tool.name === "reverie_status");
+  const value = await status.execute({}, { signal: new AbortController().signal });
+  assert.equal(value.ok, true);
+  assert.equal(value.providerReady, true);
+  assert.match(value.providerNote, /fake-provider/);
+});
