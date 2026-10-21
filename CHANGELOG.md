@@ -4,6 +4,21 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-10-21
+
+Diagnosable, fault-isolated mounting.
+
+### Added
+
+- Every mount step (tools, panel routes, announcement) is now attempted
+  independently: one failing part no longer removes the whole plugin. Tool
+  registration is isolated per tool, and route registration per route.
+- Mount outcomes are appended to `$DSH_HOME/reverie/apply-error.log`: an
+  `apply-ok` line on success, and a timestamped message plus stack for each
+  failure. The host GUI surfaces no plugin load error, so this file is the
+  diagnostic surface. A missing file after a restart means the module never
+  evaluated at all (import/resolution failure).
+
 ## [0.4.1] - 2026-10-21
 
 Fixes the plugin failing to load once a web panel was declared.

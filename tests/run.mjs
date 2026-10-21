@@ -15,6 +15,7 @@ import "./corpus.test.mjs";
 import "./loop.test.mjs";
 import "./mock.test.mjs";
 import "./plugin.test.mjs";
+import "./resilience.test.mjs";
 import "./routes.test.mjs";
 import "./search.test.mjs";
 import "./sources.test.mjs";
