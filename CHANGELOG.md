@@ -4,6 +4,20 @@ All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-10-21
+
+Try-before-you-expose-your-vault.
+
+### Added
+
+- `examples/tiny-memory-library/`: a small fictional six-note archive written
+  for this repository, with recurring motifs across diary, reading, dream,
+  project and index notes.
+- `examples/build-sample-report.mjs`: regenerates a committed
+  `docs/sample-report.md` from that corpus with a mock run (no model call).
+- README: a "who it is for" section (people whose archive is too big to browse)
+  and a "try it without your own notes" path, in English and Chinese.
+
 ## [0.4.3] - 2026-10-21
 
 Optional services now follow the host framework's rule.
