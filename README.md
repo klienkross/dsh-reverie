@@ -69,6 +69,16 @@ Once installed, the web surface gets a **Reverie** section with two switchable t
 
 Both themes are viewers: the routes behind them only list and read recorded runs, so a page refresh can never start a trip or spend budget. The visual language is ported from the original Reverie night-atlas page; the winding-road map itself is still the next porting step.
 
+## Who it is for
+
+People whose personal archive is too big to browse: an Obsidian/Logseq vault, a journal directory, a reading-highlights export, a JSONL of daily notes. If you have ever opened your own notes and thought "there is something in here that I will never find by searching", that is the intended user.
+
+It is not for anyone who wants summaries, dashboards, task extraction, or a chatbot that remembers them. Reverie makes no claims about your archive; it goes for a walk, and leaves a small verifiable trace.
+
+## Try it without your own notes
+
+`examples/tiny-memory-library/` is a small **fictional** archive written for this repo. [`docs/sample-report.md`](docs/sample-report.md) is a mock run over it — no model call, no API cost — so you can judge the output shape before touching anything personal. See [`examples/README.md`](examples/README.md) to run it or to repoint it at your own directory.
+
 ## Sources
 
 | kind | reads | locator shape |

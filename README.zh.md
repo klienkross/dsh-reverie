@@ -69,6 +69,16 @@ dsh plugin --profile web add /path/to/dsh-reverie
 
 两个主题都只是查看器：背后的路由只做「列出/读取已记录运行」，刷新页面永远不可能触发一趟运行或花掉预算。配色与信息架构沿用原版 Reverie「夜路手记」；地图那层（蜿蜒夜路上的路标）仍是下一步。
 
+## 适合谁
+
+给那些**档案太大、自己翻不动**的人：Obsidian / Logseq 库、日记目录、读后摘录导出、逐日记录的 JSONL。如果你曾经打开自己的笔记想「这里面肯定有点什么，但我搜不出来」，这就是目标用户。
+
+不适合想被总结、被做仪表盘、被自动抽待办的人。Reverie 不对你的档案下任何结论；它只是走一趟，留下一点**可核查**的痕迹。
+
+## 不想先暴露自己的库？
+
+`examples/tiny-memory-library/` 是专为本仓库写的**虚构**语料；[`docs/sample-report.md`](docs/sample-report.md) 是对它跑出的 mock 报告（不调用模型、不花 API 钱），可以直接看输出形状再决定要不要试。怎么跑、怎么换成自己的目录见 [`examples/README.md`](examples/README.md)。
+
 ## 语料源
 
 | kind | 读什么 | locator 形状 |
